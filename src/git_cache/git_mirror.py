@@ -149,6 +149,9 @@ class GitMirror:
         self.config = Config()
         self.config.load(self.configfile)
 
+    def run_command(self, command):
+        return simple_call_command(command, cwd=self.git_dir)
+
     def update(self, ref=None, force=False):
         """Update or create the mirror.
 

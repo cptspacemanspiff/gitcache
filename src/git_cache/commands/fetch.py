@@ -94,6 +94,18 @@ def git_fetch(git_options):
         output_timeout=config.get("Update", "OutputTimeout"),
     )
 
+    # if we failed to fetch, try running the command directly on from the mirror first:
+    if return_code != 0 and mirror:
+        if mirror.run_command(original_command_args) == 0:
+            return_code, _, _ = pretty_call_command_retry(
+                action,
+                "",
+                original_command_args,
+                num_retries=config.get("Update", "Retries"),
+                command_timeout=config.get("Update", "CommandTimeout"),
+                output_timeout=config.get("Update", "OutputTimeout"),
+            )
+
     return return_code
 
 
