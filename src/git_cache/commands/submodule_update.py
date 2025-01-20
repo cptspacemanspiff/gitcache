@@ -93,6 +93,7 @@ def git_submodule_update(called_as: List[str], git_options: GitOptions) -> int:
 
             if retval != 0:
                 continue
+            
 
             tgt_path_key = tgt_url_key.replace(".url", ".path")
             command = git_options.get_real_git_with_options()
@@ -101,6 +102,15 @@ def git_submodule_update(called_as: List[str], git_options: GitOptions) -> int:
 
             if retval != 0:
                 continue
+
+            print("getting commit id for submodule")
+            command = git_options.get_real_git_with_options()
+            command += ["ls-tree", "HEAD", tgt_path]
+            retval, output = getstatusoutput(command)
+            commit_id = output.split()[2]
+
+            if retval != 0:
+                raise Exception(f"Failed to get commit id for submodule {tgt_path}")
 
             # Skip not specified target paths unless no path is given at all
             if update_paths and tgt_path not in update_paths:
@@ -121,15 +131,25 @@ def git_submodule_update(called_as: List[str], git_options: GitOptions) -> int:
 
             simple_call_command(command, cwd=cwd)
 
+
+            # always make sure submodule is on proper commit:
+            # we may not have the proper commit in the cache, so we need to 
+            # fetch the proper commit.
+            command = ['git']
+            command += ["fetch", 'origin', commit_id]
+            retval = simple_call_command(command, cwd=tgt_path)
+
+            command = git_options.get_real_git_with_options()
+            command += ["submodule", "update"]
+            if has_remote:
+                command += ["--remote"]
+            command += ["--", tgt_path]
+            simple_call_command(command, cwd=cwd)
+
             if has_recursive and os.path.exists(os.path.join(abs_tgt_path, ".gitmodules")):
                 # Before entering the recursive update we must ensure the checked out
                 # repository is on the desired commit.
-                command = git_options.get_real_git_with_options()
-                command += ["submodule", "update"]
-                if has_remote:
-                    command += ["--remote"]
-                command += ["--", tgt_path]
-                simple_call_command(command, cwd=cwd)
+
 
                 command = called_as + ["submodule", "update", "--recursive"]
                 if has_init:
